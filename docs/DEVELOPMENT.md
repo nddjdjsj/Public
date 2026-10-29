@@ -6,6 +6,10 @@
 
 `index.js` 挂载设置面板，创建 Adapter；Adapter 管理宿主事件、持久化、稳定消息 ID 和生成事务。事件提取器产出可信度受限的候选，由 StateManager 统一验证后交给 appraisal/emotion/relationship/memory/decision 模块。Prompt 编译器将状态转成有限模板化语句。UI 只调用 controller，不直接读写宿主状态。
 
+v1.1.0 的 `adapters/function-tools.js` 生成四个模型工具定义，通过 Adapter 中的 Context 工具注册接口接入宿主。读取工具返回当前角色与当前 Persona 的状态、记忆和行为倾向；事件工具仅将最新玩家原文中有证据的事实暂存到生成事务。工具输出为有大小限制的 JSON，包含调用前后 scope/epoch 校验，不能将旧聊天的结果返回新聊天。工具开关、候选写入开关和每轮调用预算在 `config.tools` 中校验。
+
+自动提取与工具候选共享来源事件索引：同一来源修订、对象与类型复用事件身份，人工撤销/纠正会覆盖两条入口。重新生成可以恢复已经验证的源事实，而无需让模型再次调用同一写入工具。恢复/纠错后索引可由有效日志重建，不信任模型指定事件 ID 或来源 ID。
+
 ## 数据分层
 
 - `character.data.extensions.psyche_engine`：version、baseline OCEAN、facets、raw_scores、instrument/version/scoring、source、quality_flags、角色基线偏移。经 `writeExtensionField` 保存。

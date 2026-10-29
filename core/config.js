@@ -2,6 +2,7 @@ import { assert, clone, number, plain, safeData } from './util.js';
 
 export const DEFAULT_CONFIG = Object.freeze({
     enabled: true,
+    tools: { enabled: true, allow_event_proposals: true, max_calls_per_turn: 8 },
     personality: { enabled: true, model: 'ipip_neo_30', adaptive_personality: false, adaptation_limit: 0.1, adaptation_rate: 0.002 },
     emotion: { enabled: true, sensitivity: 1, decay_speed: 1, recovery_mode: 'story', speed: 'standard' },
     relationship: { enabled: true, max_event_delta: 10, diminishing_returns: true, trust_recovery_limit: 3, apology_trust_budget: 2, high_impact_threshold: 0.85 },
@@ -20,6 +21,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     },
 });
 const RANGES = {
+    'tools.max_calls_per_turn': [1, 20],
     'personality.adaptation_limit': [0, 0.25], 'personality.adaptation_rate': [0, 0.01],
     'emotion.sensitivity': [0, 3], 'emotion.decay_speed': [0.05, 5],
     'relationship.max_event_delta': [0, 20], 'relationship.trust_recovery_limit': [0, 10], 'relationship.apology_trust_budget': [0, 5], 'relationship.high_impact_threshold': [0.5, 1],
@@ -34,7 +36,7 @@ const RANGES = {
     'engine.snapshot_interval': [1, 500], 'engine.max_snapshots': [1, 10], 'engine.history_limit': [10, 500], 'engine.max_events': [100, 100000],
 };
 const CHOICES = { 'personality.model': ['ipip_neo_30'], 'emotion.recovery_mode': ['story', 'turn', 'event'], 'emotion.speed': ['slow', 'standard', 'fast'], 'event_extraction.mode': ['rules', 'llm'], 'prompt.language': ['zh', 'en'] };
-const INTEGER_OPTIONS = new Set(['memory.max_retrieved_events','memory.working_limit','memory.retrieval_candidates','event_extraction.timeout_ms','event_extraction.max_calls_per_turn','prompt.max_tokens','engine.snapshot_interval','engine.max_snapshots','engine.history_limit','engine.max_events']);
+const INTEGER_OPTIONS = new Set(['tools.max_calls_per_turn','memory.max_retrieved_events','memory.working_limit','memory.retrieval_candidates','event_extraction.timeout_ms','event_extraction.max_calls_per_turn','prompt.max_tokens','engine.snapshot_interval','engine.max_snapshots','engine.history_limit','engine.max_events']);
 function merge(template, input, prefix = '') {
     plain(input, prefix || 'config'); const out = clone(template);
     for (const [key, value] of Object.entries(input)) {

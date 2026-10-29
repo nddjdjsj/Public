@@ -1,5 +1,10 @@
 {
   "enabled": true,
+  "tools": {
+    "enabled": true,
+    "allow_event_proposals": true,
+    "max_calls_per_turn": 8
+  },
   "personality": {
     "enabled": true,
     "model": "ipip_neo_30",

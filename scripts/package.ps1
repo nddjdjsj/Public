@@ -1,6 +1,9 @@
-param([string]$OutputPath = (Join-Path $PSScriptRoot '../../PsycheEngine-1.0.0.zip'))
+param([string]$OutputPath)
 $ErrorActionPreference = 'Stop'
 $projectPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$packageVersion = (Get-Content -Raw -LiteralPath (Join-Path $projectPath 'package.json') | ConvertFrom-Json).version
+if ($packageVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'Invalid package version' }
+if (-not $OutputPath) { $OutputPath = Join-Path $projectPath "../PsycheEngine-$packageVersion.zip" }
 $targetPath = [System.IO.Path]::GetFullPath($OutputPath)
 $workspacePath = [System.IO.Path]::GetFullPath((Join-Path $projectPath '..'))
 if (-not $targetPath.StartsWith($workspacePath + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {

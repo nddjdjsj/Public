@@ -1,12 +1,12 @@
 # PsycheEngine
 
-可直接安装到 SillyTavern 的动态人格扩展。以五大人格及 30 个 IPIP-NEO 分面建立稳定倾向，用事件日志驱动 PAD 情绪、分对象五维关系、记忆和行为建议，再向当前模型注入有预算的状态提示词。
+可直接安装到 SillyTavern 的动态人格扩展。以五大人格及 30 个 IPIP-NEO 分面建立稳定倾向，用事件日志驱动 PAD 情绪、分对象五维关系、记忆和行为建议，再向当前模型注入有预算的状态提示词。v1.1.0 增加原生 Function Calling 工具，让支持的模型主动读取状态、检索记忆、参考行为倾向和提出有证据的剧情事件。
 
 默认使用本地保守规则，不需要独立后端、数据库、GPU 或额外模型服务。人格与角色绑定，情绪/关系/记忆与聊天绑定，全局选项单独保存。普通对话不会改写原始测评分。所有情绪、关系和决策权重都是可解释的工程模拟，并非心理诊断、意识或人格复制。
 
 ## 安装
 
-参考兼容目标是 **SillyTavern 1.19.0 release**，核对源码提交 `06bde939fb1e9c4c8d8641d810f0a916b5bce127`。开发环境没有连接正在运行的用户 SillyTavern；真实宿主验收见 [验收清单](docs/ACCEPTANCE.md)。
+参考兼容目标是 **SillyTavern 1.19.0 release**，已核对官方源码提交 `06bde939fb1e9c4c8d8641d810f0a916b5bce127`，并检查开发机 `D:\SillyTavern-1.19.0` 的实际安装源码和工具注册接口。源码核对不代表真实模型调用已验证；真实宿主验收见 [验收清单](docs/ACCEPTANCE.md)。
 
 可在 SillyTavern 的“扩展 → 安装扩展”中输入以下仓库地址：
 
@@ -14,7 +14,7 @@
 https://github.com/nddjdjsj/Public
 ```
 
-或下载 [PsycheEngine-1.0.0.zip](https://github.com/nddjdjsj/Public/raw/refs/heads/main/downloads/PsycheEngine-1.0.0.zip) 和 [SHA-256 校验值](https://github.com/nddjdjsj/Public/raw/refs/heads/main/downloads/PsycheEngine-1.0.0.zip.sha256)，手动安装：
+或下载 [PsycheEngine-1.1.0.zip](https://github.com/nddjdjsj/Public/raw/refs/heads/main/downloads/PsycheEngine-1.1.0.zip) 和 [SHA-256 校验值](https://github.com/nddjdjsj/Public/raw/refs/heads/main/downloads/PsycheEngine-1.1.0.zip.sha256)，手动安装：
 
 1. 备份当前角色卡和聊天。解压交付 ZIP，保留完整的 `SillyTavern-PsycheEngine` 文件夹。
 2. 将该文件夹放到当前 SillyTavern 用户的扩展目录：`<SillyTavern>/data/<用户>/extensions/SillyTavern-PsycheEngine/`。默认用户通常为 `default-user`。使用自定义 dataRoot 时，以实际数据目录为准。也可由服务器管理员安装到 `<SillyTavern>/public/scripts/extensions/third-party/SillyTavern-PsycheEngine/`。
@@ -52,6 +52,23 @@ N1,16,
 ```
 
 域原始加总范围 24–120，分面 4–20；原始值和内部值至少填写一项。CSV 第一行必须是上述列名。完整格式和限制见 [提取与导入说明](docs/EXTRACTION.md)，五份完整模拟配置在 [examples](examples/) 中。扩展不采集私人测试结果，也不从未知题号猜测反向计分。
+
+## 让模型自动调用心理工具
+
+在 SillyTavern 使用 **Chat Completion（聊天补全）** 连接，选择支持工具调用的模型，并启用 **Function Calling**。打开单人角色聊天，在扩展设置勾选“模型可调用工具”，点击“应用设置”。“模型自动调用工具”区域显示当前连接支持情况和已注册工具；它只报告宿主接口能力，不证明模型已经实际调用。
+
+| 工具名 | 模型可执行的操作 |
+| --- | --- |
+| `psyche_get_state` | 读取当前角色的心理状态及当前对象关系。 |
+| `psyche_recall` | 按当前场景查询有来源的事件记忆。 |
+| `psyche_get_behavior` | 读取由人格、情绪和关系计算的行为倾向。 |
+| `psyche_record_event` | 提出剧情事件候选；事件类型、参与方、强度及来源中的逐字证据必须通过校验。 |
+
+模型根据剧情自行选择工具。事件工具接收的是候选事实，不能直接设置人格、信任等任意内部数值；高影响事件仍在“记忆”分区等待人工确认。关闭“允许模型提出有证据的事件候选”可保留只读工具。默认每次生成最多调用 8 次，可在“每次生成的工具调用上限”设为 1–20；停用扩展或模型工具会撤销工具注册。
+
+这条调用路径使用 SillyTavern 当前连接，不要求将“事件提取模式”切换到 LLM。可选 LLM 事件分析仍有独立开关和内容发送说明。工具参数及返回的心理状态、相关记忆会参与当前模型服务的生成；SillyTavern 可能在获得工具结果后继续请求模型，费用按现有连接计算。**Text Completion（文本补全）不支持此原生 Function Calling 路径**，仍可使用规则模式和动态 Prompt。模型是否选择调用，取决于连接能力、模型和当时场景。
+
+本版本已核对实际 1.19.0 安装源码，并提供模拟宿主自动化验证。实际模型服务的工具选择、调用和后续生成仍需在你的聊天连接中验收；不会将源码核对或模拟测试标为真实 LLM 调用成功。
 
 ## 事件、情绪与关系
 
@@ -93,10 +110,10 @@ N1,16,
 npm test
 ```
 
-测试使用 Node 原生测试框架，无安装依赖，也可直接执行 `node --test`。`tests/core.test.js` 覆盖纯算法与事件存储；`tests/extraction.test.js` 覆盖输入边界、导入、限额和取消；`tests/prompt.test.js` 覆盖预算、语言与注入边界；`tests/statistics.test.js` 覆盖固定种子下的策略分布；`tests/integration.test.js` 与 `tests/review.test.js` 使用模拟宿主测试 Adapter、异步竞争和隐私隔离。模拟宿主通过不代表真实 SillyTavern 页面已验收。
+测试使用 Node 原生测试框架，无安装依赖，也可直接执行 `node --test`。`tests/core.test.js` 覆盖纯算法与事件存储；`tests/extraction.test.js` 覆盖输入边界、导入、限额和取消；`tests/prompt.test.js` 覆盖预算、语言与注入边界；`tests/statistics.test.js` 覆盖固定种子下的策略分布；宿主集成测试覆盖 Adapter、异步竞争、隐私隔离及工具注册和调用契约。模拟宿主通过不代表真实 SillyTavern 页面或实际 LLM 工具调用已验收。
 
 执行 `npm run build` 检查所有可安装模块；PowerShell 执行 `./scripts/package.ps1` 生成并逐文件核对 ZIP。交付实测结果见 [VALIDATION.md](docs/VALIDATION.md)。浏览器 UI 夹具及尚未执行的检查见 [BROWSER-UI.md](docs/BROWSER-UI.md)。
 
 架构为 `SillyTavern Adapter → 提取 → 评价/人格/情绪/关系/记忆/行为 → StateManager → Prompt → 最终有效消息提交`。核心不依赖 DOM 或 SillyTavern；专属接口集中于 Adapter。事件日志是重建依据，快照是有界缓存。普通追加增量计算，删除/修订/纠错时重建；达到事件容量上限会要求导出或另开聊天，不静默丢失历史。详细数据结构和兼容核对参见 `docs/` 以及核心模块导出。
 
-尚未在用户的真实 SillyTavern、实际模型连接、移动端主题和长历史生产聊天中执行验收。浏览器缓存、其他扩展、分支/导入方式及未来 API 变化可能影响生命周期，必须完成 [人工验收清单](docs/ACCEPTANCE.md) 后再用于重要长期聊天。本软件沿用目标仓库原有的 [Apache 2.0 许可证](LICENSE)。
+尚未在用户的真实 SillyTavern 页面、实际模型连接、移动端主题和长历史生产聊天中执行端到端验收。已读取本地安装源码，不代表已修改或运行该安装。浏览器缓存、其他扩展、分支/导入方式及未来 API 变化可能影响生命周期，必须完成 [人工验收清单](docs/ACCEPTANCE.md) 后再用于重要长期聊天。本软件沿用目标仓库原有的 [Apache 2.0 许可证](LICENSE)。

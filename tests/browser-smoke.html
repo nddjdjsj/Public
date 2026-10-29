@@ -31,7 +31,7 @@ let config = validateConfig();
 let personality = createPersonality();
 let prompt = '当前状态：失望。愿意倾听，但不会立即恢复全部信任。';
 const controller = {
-    getView: () => ({ config, personality, state, prompt, debug: { extraction: malicious, logs: [{ action: 'commit' }], errors: [] }, capabilities: { fixture: true }, status: '模拟控制器就绪' }),
+    getView: () => ({ config, personality, state, prompt, debug: { extraction: malicious, logs: [{ action: 'commit' }], errors: [] }, capabilities: { fixture: true, tool_registration: true, tool_calling: true, registered_tools: ['psyche_get_state', 'psyche_recall', 'psyche_record_event', 'psyche_get_behavior'] }, status: '模拟控制器就绪' }),
     updateConfig: patch => { calls.push(['updateConfig', patch]); config = validateConfig(patch); },
     savePersonality: profile => { calls.push(['savePersonality']); personality = createPersonality(profile); },
     importPersonality: text => { personality = createPersonality(JSON.parse(text)); calls.push(['importPersonality']); },
@@ -63,6 +63,13 @@ try {
     input(by('personality-input'), JSON.stringify({ baseline: { O: .21, C: .5, E: .5, A: .5, N: .5 } })); await click('personality-import');
     assert(by('status').dataset.error === 'false' && openness.value === '0.21', '有效导入更新人格并恢复状态提示');
     tab('设置');
+    const toolLimit = [...by('config-fields').querySelectorAll('label')].find(node => node.textContent.includes('每次生成的工具调用上限')).querySelector('input');
+    assert(toolLimit.value === '8' && by('tools-status').textContent.includes('模型可自动选择调用'), '模型工具默认上限及连接能力状态显示正确');
+    assert(['psyche_get_state', 'psyche_recall', 'psyche_record_event', 'psyche_get_behavior'].every(name => by('registered-tools').textContent.includes(name)), '四个已注册工具名以安全文字显示');
+    input(toolLimit, '21'); await click('config-save');
+    assert(by('status').dataset.error === 'true' && config.tools.max_calls_per_turn === 8, '工具调用上限超过二十时拒绝保存');
+    input(toolLimit, '6'); await click('config-save');
+    assert(config.tools.max_calls_per_turn === 6, '工具调用上限可在有效范围内保存');
     const extractionMode = [...by('config-fields').querySelectorAll('select')].find(node => [...node.options].some(option => option.value === 'llm'));
     input(extractionMode, 'llm'); await click('config-save');
     assert(by('status').dataset.error === 'true' && config.event_extraction.mode === 'rules', '未同意数据说明时阻止启用模型分析');

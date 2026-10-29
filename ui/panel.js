@@ -23,6 +23,9 @@ const CONFIG_FIELDS = [
     ['emotion.enabled', '情绪模块', 'checkbox'],
     ['relationship.enabled', '关系模块', 'checkbox'],
     ['memory.enabled', '记忆模块', 'checkbox'],
+    ['tools.enabled', '模型可调用工具', 'checkbox'],
+    ['tools.allow_event_proposals', '允许模型提出有证据的事件候选', 'checkbox'],
+    ['tools.max_calls_per_turn', '每次生成的工具调用上限', 'number', 1, 20, 1],
     ['prompt.enabled', '动态 Prompt 注入', 'checkbox'],
     ['prompt.personality', 'Prompt 包含稳定人格', 'checkbox'],
     ['prompt.emotion', 'Prompt 包含当前情绪', 'checkbox'],
@@ -51,6 +54,10 @@ const TEMPLATE = `
 <label class="pe-row"><input type="checkbox" data-pe="llm-consent"><span>我了解模型分析会将近期聊天文本发送到 SillyTavern 当前配置的模型服务。</span></label>
 <p class="pe-note">规则模式不会额外调用模型。LLM 分析失败时采用保守回退；所有返回内容均先验证。</p>
 <div class="pe-actions"><button type="button" data-action="config-save">应用设置</button></div>
+<fieldset><legend>模型自动调用工具</legend><p class="pe-note">需要在 SillyTavern 的 Chat Completion（聊天补全）中启用 Function Calling，并使用支持工具调用的模型。模型按当前剧情自行选择是否调用；Text Completion（文本补全）不支持此调用路径。</p>
+<p data-pe="tools-status" role="status"></p><p class="pe-note" data-pe="registered-tools"></p>
+<p class="pe-note">psyche_get_state 读取当前心理状态；psyche_recall 检索事件记忆；psyche_get_behavior 读取行为倾向。psyche_record_event 只能提出来自当前用户消息、具有逐字证据的事件候选，不能任意写入人格或关系数值；高影响事件仍需人工确认。</p>
+<p class="pe-note">工具注册不会另建模型连接。此开关与“事件提取模式”中的可选 LLM 分析分别控制；停用后不向模型提供这些工具。</p></fieldset>
 <details><summary>当前环境兼容能力</summary><pre data-pe="capabilities"></pre></details>
 <fieldset><legend>聊天数据备份</legend><p class="pe-note">备份可能包含私人剧情、角色配置和关系记录。导入只使用经过校验的数据。</p>
 <div class="pe-actions"><button type="button" data-action="export-data">导出备份 JSON</button><button type="button" data-action="import-data">导入备份 JSON</button></div>
@@ -241,6 +248,14 @@ export function mountPanel({ container, controller }) {
             if (kind === 'checkbox') input.checked = Boolean(value); else if (value !== undefined) input.value = String(value);
         }
         find('capabilities').textContent = readable(view.capabilities ?? '环境能力尚未报告');
+        const capabilities = view.capabilities ?? {}, names = array(capabilities.registered_tools).filter(name => typeof name === 'string').slice(0, 20);
+        const toolsEnabled = view.config?.tools?.enabled === true;
+        find('tools-status').textContent = !toolsEnabled ? '模型工具已停用。'
+            : capabilities.tool_registration !== true ? '当前宿主未报告可用的工具注册接口；心理状态 Prompt 可继续按设置工作。'
+                : capabilities.tool_calling !== true ? '工具接口可用；当前连接尚未启用 Function Calling，或当前模型不支持。请检查聊天补全设置。'
+                    : names.length ? '工具已注册，当前连接支持 Function Calling；模型可自动选择调用。'
+                        : '当前连接支持 Function Calling，尚未报告已注册工具。请检查角色聊天与启用状态。';
+        find('registered-tools').textContent = `当前已注册工具：${names.length ? names.join('、') : '暂无'}`;
     }
     function renderPersonality() {
         const profile = view.personality ?? view.state?.personality;

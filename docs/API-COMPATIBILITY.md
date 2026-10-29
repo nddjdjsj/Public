@@ -37,6 +37,18 @@
 
 初次误探 `public/scripts/events/event-types.js` 返回404，已改为实际 `public/scripts/events.js`；代码不导入误探路径。专属读取和 API 封装于 `adapters/sillytavern.js`，入口仅负责启动、宿主启停钩子和 UI 挂载。
 
+## v1.1.0 本地模型工具核对
+
+新增核对用户提供的本地 SillyTavern 1.19.0。实际 `st-context.js` 导出了 `registerFunctionTool`、`unregisterFunctionTool` 和 `isToolCallingSupported`；扩展通过这些 Context 接口注册四个原生 Function Calling 工具。
+
+工具定义参数为 `{name,displayName,description,parameters,action,formatMessage,shouldRegister,stealth}`。宿主请求构建器会将可用定义加入 `tools`，并设置 `tool_choice: 'auto'`，由当前模型按需选择。注册工具不代表当前连接已支持工具调用；需要 Chat Completion API、宿主 Function Calling 开关及受支持模型，工具的动态可用条件仍须满足。
+
+实际工具类不会替扩展执行 JSON Schema 校验，因此本扩展在 action 层再次检查字段、范围和不可信输入。工具为非 stealth，返回结果进入宿主正常工具后续生成和可见调用记录；模型没有修改原始人格、直接设置信任数值、确认高影响事件或撤销用户修正的工具权限。
+
+宿主执行工具后递归 `Generate('normal')`，会再次发出 `GENERATION_STARTED`，但事件不包含递归 depth。本扩展以 `TOOL_CALLS_PERFORMED` 和稳定来源身份保留同一事务及调用预算；跳过中间回复和工具系统消息，等待最终回复再提交。删除工具占位消息 `''` / `'...'` 不会误清空仍有效的候选。来源删除、编辑、停止、禁用及切换聊天则使旧候选失效。
+
+真实源代码契约测试、哈希和验证边界见 [LOCAL-HOST-TOOLS.md](LOCAL-HOST-TOOLS.md)。该验证不等于浏览器或真实模型服务端到端测试。
+
 ## 保守策略与实际限制
 
 自动事实仅来自玩家来源消息；不会从 AI 回复里自动学习“已经发生的记忆”。回复仅作为该轮成功提交的收据来源；普通 Swipe 不改变玩家事实内容，删除回复会撤销依赖它的提交，重新生成再幂等提交。编辑玩家消息会用新的修订替代原事件。
