@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-29",
+  "version": "1.19.0",
+  "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+  "audit": "Downloaded official source contract verified; not a running SillyTavern test",
+  "files": {
+    "st-package.json": {
+      "bytes": 5941,
+      "sha256": "5b6e0634a63872c33603bf803217613a388f2e5dbd5990f7b30d254bfbf027c2"
+    },
+    "st-context.js": {
+      "bytes": 10862,
+      "sha256": "5a91ce36a343041c81351953baba10a54a7576f15571c01ef1af8c19bcc0e30d"
+    },
+    "st-script.js": {
+      "bytes": 497669,
+      "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855"
+    },
+    "st-extensions.js": {
+      "bytes": 88263,
+      "sha256": "f5ee3fee55d52e8b7041ceafb260dba5a2b2dada53081f930045ab8b6447d30d"
+    },
+    "st-events.js": {
+      "bytes": 5629,
+      "sha256": "2aa1c20f140fab8967e6f850bd6e253bd0aa6e7c6a2e0540778cb11dd0f3a6ea"
+    },
+    "example-manifest.json": {
+      "bytes": 303,
+      "sha256": "aa45bd296883c37dc5aa3463ff8e5549083748831b2ad207704ce87bb289a949"
+    },
+    "example-index.ts": {
+      "bytes": 213,
+      "sha256": "855a04bf4c8ed88f013adef7e1e605c843ba4d906a0931372bbbaf1fafeff578"
+    }
+  }
+}

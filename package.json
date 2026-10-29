@@ -1,0 +1,16 @@
+{
+  "name": "sillytavern-psycheengine",
+  "version": "1.0.0",
+  "private": true,
+  "repository": { "type": "git", "url": "https://github.com/nddjdjsj/Public.git" },
+  "type": "module",
+  "description": "Local event-sourced personality, PAD emotion, relationships and memory extension",
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/check.mjs",
+    "audit:upstream": "node scripts/verify-upstream.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "license": "Apache-2.0"
+}

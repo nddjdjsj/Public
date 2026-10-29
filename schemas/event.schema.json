@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psycheengine.local/schemas/extraction-v1.json",
+  "title": "Untrusted PsycheEngine event extraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["events"],
+  "properties": {
+    "events": {
+      "type": "array", "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["type", "actor", "target", "intensity", "confidence", "evidence", "modality"],
+        "properties": {
+          "id": {"type":"string", "maxLength":200},
+          "type": {"enum":["help","comfort","praise","shared_experience","promise_made","promise_kept","promise_broken","deception","apology","restitution","argument","rejection","boundary_respected","boundary_violated","neglect","relationship_repair"]},
+          "actor": {"type":"string", "minLength":1, "maxLength":200},
+          "target": {"type":"string", "minLength":1, "maxLength":200},
+          "intensity": {"type":"number", "minimum":0, "maximum":1},
+          "confidence": {"type":"number", "minimum":0, "maximum":1},
+          "evidence": {"type":"string", "minLength":3, "maxLength":600},
+          "modality": {"const":"fact"},
+          "story_time": {"type":"number", "minimum":0}
+        }
+      }
+    }
+  }
+}

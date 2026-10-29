@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PsycheEngine 浏览器 UI 冒烟测试</title>
+<link rel="stylesheet" href="../ui/styles.css"><style>body{background:#23272d;color:#e4e8eb;font:16px system-ui;max-width:900px;margin:2rem auto;padding:0 1rem}#result{padding:1rem;border:1px solid #777;white-space:pre-wrap}#result[data-result="pass"]{border-color:#65b99e}#result[data-result="fail"]{border-color:#d77777}</style></head>
+<body><h1>PsycheEngine 浏览器 UI 冒烟测试</h1><p>真实浏览器运行，使用独立的模拟控制器；不代表 SillyTavern 端到端测试。</p><pre id="result" data-result="running">正在执行…</pre><main id="fixture"></main>
+<script type="module">
+import { mountPanel } from '../ui/panel.js';
+import { createPersonality } from '../core/personality.js';
+import { validateConfig } from '../core/config.js';
+const result = document.querySelector('#result');
+const fixture = document.querySelector('#fixture');
+const checks = [];
+const calls = [];
+let panel;
+const assert = (condition, description) => { if (!condition) throw new Error(description); checks.push(description); };
+const settle = () => new Promise(resolve => setTimeout(resolve, 25));
+const input = (node, value) => { if (node.type === 'checkbox') node.checked = value; else node.value = value; node.dispatchEvent(new Event('input', { bubbles: true })); };
+const by = key => fixture.querySelector(`[data-pe="${key}"]`);
+const click = async key => { fixture.querySelector(`[data-action="${key}"]`).click(); await settle(); };
+const tab = name => [...fixture.querySelectorAll('[role="tab"]')].find(node => node.textContent === name).click();
+const malicious = '<img src=x onerror="window.__peXss=1">';
+const state = {
+    emotion: { baseline: { pleasure: .1, arousal: 0, dominance: .2 }, current: { pleasure: -.2, arousal: .3, dominance: -.1 }, intensity: .3, labels: ['disappointment'], history: [{ current: { pleasure: .2, arousal: .1, dominance: .3 } }] },
+    relationships: { user: { trust: 32, closeness: 40, respect: 55, attachment: 25, conflict: 22, history: [{ type: 'promise_broken', effects: { trust: -4 }, reason: '明确失约' }] } },
+    memories: [
+        { id: 'normal', type: 'help', summary: malicious, actors: ['user', 'character'], importance: .6, confidence: .96, source_message_ids: ['stable-msg-1'], status: 'active' },
+        { id: 'pending', type: 'promise_broken', summary: '玩家承认失约', actors: ['user', 'character'], importance: .8, confidence: .96, source_message_ids: ['stable-msg-2'], status: 'active', pending_confirmation: true },
+    ], turn: 2, story_time: 30, adaptive_offsets: {}, adaptation_history: [],
+};
+let config = validateConfig();
+let personality = createPersonality();
+let prompt = '当前状态：失望。愿意倾听，但不会立即恢复全部信任。';
+const controller = {
+    getView: () => ({ config, personality, state, prompt, debug: { extraction: malicious, logs: [{ action: 'commit' }], errors: [] }, capabilities: { fixture: true }, status: '模拟控制器就绪' }),
+    updateConfig: patch => { calls.push(['updateConfig', patch]); config = validateConfig(patch); },
+    savePersonality: profile => { calls.push(['savePersonality']); personality = createPersonality(profile); },
+    importPersonality: text => { personality = createPersonality(JSON.parse(text)); calls.push(['importPersonality']); },
+    exportData: () => ({ version: 1, events: [] }),
+    importData: text => { JSON.parse(text); calls.push(['importData']); },
+    resetChat: () => { calls.push(['resetChat']); },
+    resetEmotion: pad => { state.emotion.current = pad ?? state.emotion.baseline; calls.push(['resetEmotion']); },
+    revokeEvent: id => { state.memories = state.memories.filter(memory => memory.id !== id); if (id === 'adaptation-test') { state.adaptive_offsets = {}; state.adaptation_history = []; } calls.push(['revokeEvent', id]); },
+    correctEvent: (id, patch) => { Object.assign(state.memories.find(memory => memory.id === id), patch); calls.push(['correctEvent', id, patch]); },
+    confirmEvent: id => { state.memories.find(memory => memory.id === id).pending_confirmation = false; calls.push(['confirmEvent', id]); },
+    rebuild: () => { calls.push(['rebuild']); },
+    previewPrompt: () => { prompt = '预览已刷新：保留角色自主性。'; return prompt; },
+    addManualEvent: event => { calls.push(['addManualEvent', event]); if (event.type === 'personality_adaptation') { state.adaptive_offsets = { ...event.offsets }; state.adaptation_history = [{ event_id: 'adaptation-test', before: {}, after: event.offsets, reason: event.reason }]; } },
+    setStoryTime: minutes => { state.story_time = minutes; calls.push(['setStoryTime', minutes]); },
+    download: (data, name) => { calls.push(['download', name, data]); },
+};
+try {
+    panel = mountPanel({ container: fixture, controller });
+    assert(fixture.querySelectorAll('[role="tab"]').length === 6, '六个设置分区成功挂载');
+    assert(by('domains').querySelectorAll('input[type="range"]').length === 5 && by('facets').querySelectorAll('input[type="range"]').length === 30, '五维与三十个分面均可操作');
+    assert(!fixture.querySelector('img') && !window.__peXss && fixture.textContent.includes(malicious), '恶意记忆与调试文本仅作为文字显示，没有 XSS');
+    tab('人格');
+    const openness = by('domains').querySelector('input'); input(openness, '.82'); panel.render();
+    assert(openness.value === '0.82', '状态刷新保留未保存的人格编辑');
+    await click('personality-save');
+    assert(personality.baseline.O === .82, '保存人格操作传递有效归一化分数');
+    input(by('personality-input'), '{bad'); await click('personality-import');
+    assert(by('status').dataset.error === 'true', '无效导入在面板显示错误并保持运行');
+    input(by('personality-input'), JSON.stringify({ baseline: { O: .21, C: .5, E: .5, A: .5, N: .5 } })); await click('personality-import');
+    assert(by('status').dataset.error === 'false' && openness.value === '0.21', '有效导入更新人格并恢复状态提示');
+    tab('设置');
+    const extractionMode = [...by('config-fields').querySelectorAll('select')].find(node => [...node.options].some(option => option.value === 'llm'));
+    input(extractionMode, 'llm'); await click('config-save');
+    assert(by('status').dataset.error === 'true' && config.event_extraction.mode === 'rules', '未同意数据说明时阻止启用模型分析');
+    input(by('llm-consent'), true); await click('config-save');
+    assert(config.event_extraction.mode === 'llm', '明确同意后可启用模型分析');
+    tab('人格');
+    assert(fixture.querySelector('[data-action="personality-adapt"]').disabled, '人格适应默认关闭且操作不可用');
+    tab('设置');
+    const adaptationToggle = [...by('config-fields').querySelectorAll('label')].find(node => node.textContent.includes('缓慢人格适应')).querySelector('input');
+    input(adaptationToggle, true); await click('config-save'); tab('人格');
+    const baselineBeforeAdaptation = JSON.stringify(personality.baseline);
+    input(by('adaptation-delta'), '.001'); input(by('adaptation-reason'), '长期共同经历后，手动确认微小调整'); await click('personality-adapt');
+    assert(state.adaptive_offsets.O === .001 && JSON.stringify(personality.baseline) === baselineBeforeAdaptation, '显式适应仅调整有上限偏移，不改变基础人格');
+    assert(by('adaptation-history').textContent.includes('长期共同经历'), '人格适应原因与可撤销历史可见');
+    by('adaptation-history').querySelector('button').click(); await settle();
+    assert(!Object.keys(state.adaptive_offsets).length && calls.some(call => call[0] === 'revokeEvent' && call[1] === 'adaptation-test'), '人格适应历史支持撤销');
+    tab('情绪');
+    assert(by('emotion-chart').querySelectorAll('polyline').length === 3 && by('emotion-labels').textContent.includes('失望'), 'PAD 图表和中文情绪标签正确显示');
+    input(by('story-time'), '45'); await click('story-time');
+    assert(state.story_time === 45, '剧情时间操作使用明确输入');
+    tab('关系');
+    assert(by('relationships').querySelectorAll('meter').length === 5 && by('relationships').textContent.includes('信任'), '分对象关系五维独立展示');
+    tab('记忆');
+    assert(by('pending-events').textContent.includes('确认高影响事件'), '高影响候选事件要求明确确认');
+    [...by('pending-events').querySelectorAll('button')].find(node => node.textContent === '确认高影响事件').click(); await settle();
+    assert(calls.some(call => call[0] === 'confirmEvent' && call[1] === 'pending') && !by('pending-events').textContent.includes('确认高影响事件'), '确认事件后刷新候选与记忆显示');
+    input(by('memory-search'), '不会匹配的关键词');
+    assert(by('memories').textContent.includes('没有匹配'), '记忆关键词搜索有效');
+    input(by('memory-search'), '');
+    const correction = by('memories').querySelector('textarea'); correction.value = '澄清后的真实事实'; correction.focus(); panel.render();
+    assert(correction.isConnected && correction.value === '澄清后的真实事实', '聊天刷新保留正在编辑的记忆澄清');
+    const correctionButton = [...correction.closest('details').querySelectorAll('button')].find(node => node.textContent === '保存修正'); correctionButton.click(); await settle();
+    assert(calls.some(call => call[0] === 'correctEvent' && call[2].summary === '澄清后的真实事实'), '记忆修正调用可追踪控制器操作');
+    tab('调试'); await click('preview');
+    assert(by('prompt').textContent.includes('预览已刷新') && by('debug-details').textContent.includes('提交与回滚日志'), 'Prompt 预览与调试分区可用');
+    tab('设置'); await click('export-data');
+    assert(calls.some(call => call[0] === 'download' && call[1] === 'psyche-engine-backup.json'), '备份导出使用 JSON 下载');
+    await click('reset-chat');
+    assert(!calls.some(call => call[0] === 'resetChat') && by('status').dataset.error === 'true', '重置聊天要求明确勾选');
+    input(by('reset-confirm'), true); await click('reset-chat');
+    assert(calls.some(call => call[0] === 'resetChat'), '明确勾选后重置操作可用');
+    const oldButton = fixture.querySelector('[data-action="config-save"]'), before = calls.length;
+    panel.destroy(); oldButton.click(); await settle();
+    assert(!fixture.querySelector('.pe-panel') && calls.length === before, '销毁面板移除挂载与监听器');
+    result.dataset.result = 'pass'; result.textContent = `PASS ${checks.length} browser UI checks\n${checks.map((check, index) => `${index + 1}. ${check}`).join('\n')}\nUser agent: ${navigator.userAgent}`;
+} catch (error) {
+    result.dataset.result = 'fail'; result.textContent = `FAIL after ${checks.length} checks\n${error.stack}\n${checks.join('\n')}`;
+    console.error(error);
+}
+window.__psycheBrowserSmoke = { pass: result.dataset.result === 'pass', checks, result: result.textContent };
+</script></body></html>
